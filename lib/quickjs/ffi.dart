@@ -7,7 +7,6 @@
  */
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 
 extension ListFirstWhere<T> on Iterable<T> {
@@ -171,9 +170,9 @@ final Pointer<JSRuntime> Function(
 class _RuntimeOpaque {
   final _JSChannel _channel;
   List<JSRef> _ref = [];
-  final ReceivePort _port;
+  // final ReceivePort _port;
   int? _dartObjectClassId;
-  _RuntimeOpaque(this._channel, this._port);
+  _RuntimeOpaque(this._channel/*, this._port*/);
 
   int? get dartObjectClassId => _dartObjectClassId;
 
@@ -201,10 +200,10 @@ Pointer<JSValue>? channelDispacher(
 
 Pointer<JSRuntime> jsNewRuntime(
   _JSChannel callback,
-  ReceivePort port,
+  // ReceivePort port,
 ) {
   final rt = _jsNewRuntime(Pointer.fromFunction(channelDispacher));
-  runtimeOpaques[rt] = _RuntimeOpaque(callback, port);
+  runtimeOpaques[rt] = _RuntimeOpaque(callback/*, port*/);
   return rt;
 }
 
@@ -350,7 +349,7 @@ Pointer<JSValue> jsEval(
   );
   malloc.free(utf8input);
   malloc.free(utf8filename);
-  runtimeOpaques[jsGetRuntime(ctx)]?._port.sendPort.send(#eval);
+  // runtimeOpaques[jsGetRuntime(ctx)]?._port.sendPort.send(#eval);
   return val;
 }
 
@@ -934,7 +933,7 @@ Pointer<JSValue> jsCall(
   final jsRet = _jsCall(ctx, funcObj, _thisObj, argv.length, jsArgs);
   jsFreeValue(ctx, func1);
   malloc.free(jsArgs);
-  runtimeOpaques[jsGetRuntime(ctx)]?._port.sendPort.send(#call);
+  // runtimeOpaques[jsGetRuntime(ctx)]?._port.sendPort.send(#call);
   return jsRet;
 }
 

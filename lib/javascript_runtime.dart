@@ -93,6 +93,16 @@ abstract class JavascriptRuntime {
 
   int executePendingJob();
 
+  void ensurePendingJob(int interval, int incremental) {
+    Future.delayed(Duration(milliseconds: interval), () {
+      int result = executePendingJob();
+      print('ensurePendingJob:$result');
+      if(result > 0) {
+        ensurePendingJob(interval + incremental, incremental);
+      }
+    });
+  }
+
   void _setupConsoleLog() {
     evaluate("""
     var console = {

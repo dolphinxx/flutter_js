@@ -2,8 +2,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
-import 'dart:io';
-import 'dart:isolate';
+// import 'dart:io';
+// import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_js/flutter_js.dart';
@@ -11,7 +11,7 @@ import 'package:flutter_js/javascript_runtime.dart';
 import 'ffi.dart';
 export 'ffi.dart' show JSEvalFlag, JSRef;
 
-part './isolate.dart';
+// part './isolate.dart';
 part './wrapper.dart';
 part './object.dart';
 
@@ -30,7 +30,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
   int stackSize;
 
   /// Message Port for event loop. Close it to stop dispatching event loop.
-  ReceivePort port = ReceivePort();
+  // ReceivePort port = ReceivePort();
 
   /// Handler function to manage js module.
   final _JsModuleHandler? moduleHandler;
@@ -40,9 +40,9 @@ class QuickJsRuntime2 extends JavascriptRuntime {
 
   QuickJsRuntime2({
     this.moduleHandler,
-    this.stackSize = 1024 * 1024,
+    int? stackSize,
     this.hostPromiseRejectionHandler,
-  }) {
+  }):stackSize = stackSize?? 1024 * 1024 {
     this.init();
   }
 
@@ -114,7 +114,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
         }
         return err;
       }
-    }, port);
+    }/*, port*/);
     if (stackSize > 0) jsSetMaxStackSize(rt, stackSize);
     _rt = rt;
     _ctx = jsNewContext(rt);
@@ -128,7 +128,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
     _ctx = null;
     if (ctx != null) jsFreeContext(ctx);
     if (rt == null) return;
-    _executePendingJob();
+    // _executePendingJob();
     try {
       jsFreeRuntime(rt);
     } on String catch (e) {
@@ -136,25 +136,25 @@ class QuickJsRuntime2 extends JavascriptRuntime {
     }
   }
 
-  void _executePendingJob() {
-    final rt = _rt;
-    final ctx = _ctx;
-    if (rt == null || ctx == null) return;
-    while (true) {
-      int err = jsExecutePendingJob(rt);
-      if (err <= 0) {
-        if (err < 0) print(_parseJSException(ctx));
-        break;
-      }
-    }
-  }
+  // void _executePendingJob() {
+  //   final rt = _rt;
+  //   final ctx = _ctx;
+  //   if (rt == null || ctx == null) return;
+  //   while (true) {
+  //     int err = jsExecutePendingJob(rt);
+  //     if (err <= 0) {
+  //       if (err < 0) print(_parseJSException(ctx));
+  //       break;
+  //     }
+  //   }
+  // }
 
-  /// Dispatch JavaScript Event loop.
-  Future<void> dispatch() async {
-    await for (final _ in port) {
-      _executePendingJob();
-    }
-  }
+  // /// Dispatch JavaScript Event loop.
+  // Future<void> dispatch() async {
+  //   await for (final _ in port) {
+  //     _executePendingJob();
+  //   }
+  // }
 
   /// Evaluate js script.
   JsEvalResult evaluate(
@@ -214,8 +214,14 @@ class QuickJsRuntime2 extends JavascriptRuntime {
 
   @override
   int executePendingJob() {
-    _executePendingJob();
-    return 0;
+    // _executePendingJob();
+    // return 0;
+    final rt = _rt;
+    final ctx = _ctx;
+    if (rt == null || ctx == null) return 0;
+    int err = jsExecutePendingJob(rt);
+    if (err < 0) print(_parseJSException(ctx));
+    return err;
   }
 
   @override
@@ -230,12 +236,12 @@ class QuickJsRuntime2 extends JavascriptRuntime {
         evaluate("(key, val) => { this[key] = val; }").rawResult;
     (setToGlobalObject as JSInvokable).invoke([
       'sendMessage',
-      (String channelName, String message) {
+      (String channelName, dynamic message) {
         final channelFunctions = JavascriptRuntime
             .channelFunctionsRegistered[getEngineInstanceId()]!;
 
         if (channelFunctions.containsKey(channelName)) {
-          channelFunctions[channelName]!.call(jsonDecode(message));
+          channelFunctions[channelName]!.call(message);
         } else {
           print('No channel $channelName registered');
         }

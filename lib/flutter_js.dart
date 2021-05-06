@@ -12,10 +12,10 @@ export './quickjs/quickjs_runtime.dart';
 import './quickjs/quickjs_runtime2.dart';
 export './quickjs/quickjs_runtime2.dart';
 
-export './extensions/handle_promises.dart';
+// export './extensions/handle_promises.dart';
 export 'quickjs-sync-server/quickjs_oasis_jsbridge.dart';
 import './extensions/fetch.dart';
-import './extensions/handle_promises.dart';
+// import './extensions/handle_promises.dart';
 
 export 'js_eval_result.dart';
 export 'javascript_runtime.dart';
@@ -40,7 +40,7 @@ JavascriptRuntime getJavascriptRuntime(
     runtime = JavascriptCoreRuntime();
   }
   if (xhr) runtime.enableFetch();
-  runtime.enableHandlePromises();
+  // runtime.enableHandlePromises();
   return runtime;
 }
 

@@ -47,7 +47,7 @@ android {
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
-        main.jniLibs.srcDirs = ['jniLibs']
+//        main.jniLibs.srcDirs = ['jniLibs']
     }
     defaultConfig {
         minSdkVersion 21

@@ -80,7 +80,7 @@ class _DartObject extends JSRef implements JSRefLeakable {
 }
 
 /// JS Error wrapper
-class JSError extends _IsolateEncodable {
+class JSError {
   late String message;
   late String stack;
   JSError(message, [stack]) {
@@ -98,19 +98,19 @@ class JSError extends _IsolateEncodable {
     return stack.isEmpty ? message.toString() : "$message\n$stack";
   }
 
-  static JSError? _decode(Map obj) {
-    if (obj.containsKey(#jsError))
-      return JSError(obj[#jsError], obj[#jsErrorStack]);
-    return null;
-  }
-
-  @override
-  Map _encode() {
-    return {
-      #jsError: message,
-      #jsErrorStack: stack,
-    };
-  }
+  // static JSError? _decode(Map obj) {
+  //   if (obj.containsKey(#jsError))
+  //     return JSError(obj[#jsError], obj[#jsErrorStack]);
+  //   return null;
+  // }
+  //
+  // @override
+  // Map _encode() {
+  //   return {
+  //     #jsError: message,
+  //     #jsErrorStack: stack,
+  //   };
+  // }
 }
 
 /// JS Object reference
@@ -147,7 +147,7 @@ class _JSObject extends JSRef {
 }
 
 /// JS function wrapper
-class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
+class _JSFunction extends _JSObject implements JSInvokable {
   _JSFunction(Pointer<JSContext> ctx, Pointer<JSValue> val) : super(ctx, val);
 
   @override
@@ -183,64 +183,64 @@ class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
     return jsRet;
   }
 
-  @override
-  Map _encode() {
-    return IsolateFunction._new(this)._encode();
-  }
+  // @override
+  // Map _encode() {
+  //   return IsolateFunction._new(this)._encode();
+  // }
 }
 
 /// Dart function wrapper for isolate
-class IsolateFunction extends JSInvokable implements _IsolateEncodable {
-  int? _isolateId;
-  SendPort? _port;
+class IsolateFunction extends JSInvokable {
+  // int? _isolateId;
+  // SendPort? _port;
   JSInvokable? _invokable;
-  IsolateFunction._fromId(this._isolateId, this._port);
+  // IsolateFunction._fromId(this._isolateId/*, this._port*/);
 
   IsolateFunction._new(this._invokable) {
     _handlers.add(this);
   }
   IsolateFunction(Function func) : this._new(_DartFunction(func));
 
-  static ReceivePort? _invokeHandler;
+  // static ReceivePort? _invokeHandler;
   static Set<IsolateFunction> _handlers = Set();
 
-  static get _handlePort {
-    if (_invokeHandler == null) {
-      _invokeHandler = ReceivePort();
-      _invokeHandler!.listen((msg) async {
-        final msgPort = msg[#port];
-        try {
-          final handler = _handlers.firstWhereOrNull(
-            (v) => identityHashCode(v) == msg[#handler],
-          );
-          if (handler == null) throw JSError('handler released');
-          final ret = _encodeData(await handler._handle(msg[#msg]));
-          if (msgPort != null) msgPort.send(ret);
-        } catch (e) {
-          final err = _encodeData(e);
-          if (msgPort != null)
-            msgPort.send({
-              #error: err,
-            });
-        }
-      });
-    }
-    return _invokeHandler!.sendPort;
-  }
+  // static get _handlePort {
+  //   if (_invokeHandler == null) {
+  //     _invokeHandler = ReceivePort();
+  //     _invokeHandler!.listen((msg) async {
+  //       final msgPort = msg[#port];
+  //       try {
+  //         final handler = _handlers.firstWhereOrNull(
+  //           (v) => identityHashCode(v) == msg[#handler],
+  //         );
+  //         if (handler == null) throw JSError('handler released');
+  //         final ret = await handler._handle(msg[#msg]);
+  //         if (msgPort != null) msgPort.send(ret);
+  //       } catch (e) {
+  //         final err = e;
+  //         if (msgPort != null)
+  //           msgPort.send({
+  //             #error: err,
+  //           });
+  //       }
+  //     });
+  //   }
+  //   return _invokeHandler!.sendPort;
+  // }
 
   _send(msg) async {
-    final port = _port;
-    if (port == null) return _handle(msg);
-    final evaluatePort = ReceivePort();
-    port.send({
-      #handler: _isolateId,
-      #msg: msg,
-      #port: evaluatePort.sendPort,
-    });
-    final result = await evaluatePort.first;
-    if (result is Map && result.containsKey(#error))
-      throw _decodeData(result[#error]);
-    return _decodeData(result);
+    // final port = _port;
+    /*if (port == null) */return _handle(msg);
+    // final evaluatePort = ReceivePort();
+    // port.send({
+    //   #handler: _isolateId,
+    //   #msg: msg,
+    //   #port: evaluatePort.sendPort,
+    // });
+    // final result = await evaluatePort.first;
+    // if (result is Map && result.containsKey(#error))
+    //   throw result[#error];
+    // return result;
   }
 
   _destroy() {
@@ -262,37 +262,37 @@ class IsolateFunction extends JSInvokable implements _IsolateEncodable {
         _destroy();
         return null;
     }
-    final List args = _decodeData(msg[#args]);
-    final thisVal = _decodeData(msg[#thisVal]);
+    final List args = msg[#args];
+    final thisVal = msg[#thisVal];
     return _invokable?.invoke(args, thisVal);
   }
 
   @override
   Future invoke(List positionalArguments, [thisVal]) async {
-    final List dArgs = _encodeData(positionalArguments);
-    final dThisVal = _encodeData(thisVal);
+    final List dArgs = positionalArguments;
+    final dThisVal = thisVal;
     return _send({
       #args: dArgs,
       #thisVal: dThisVal,
     });
   }
 
-  static IsolateFunction? _decode(Map obj) {
-    if (obj.containsKey(#jsFunctionPort))
-      return IsolateFunction._fromId(
-        obj[#jsFunctionId],
-        obj[#jsFunctionPort],
-      );
-    return null;
-  }
+  // static IsolateFunction? _decode(Map obj) {
+  //   if (obj.containsKey(#jsFunctionPort))
+  //     return IsolateFunction._fromId(
+  //       obj[#jsFunctionId],
+  //       obj[#jsFunctionPort],
+  //     );
+  //   return null;
+  // }
 
-  @override
-  Map _encode() {
-    return {
-      #jsFunctionId: _isolateId ?? identityHashCode(this),
-      #jsFunctionPort: _port ?? IsolateFunction._handlePort,
-    };
-  }
+  // @override
+  // Map _encode() {
+  //   return {
+  //     #jsFunctionId: _isolateId ?? identityHashCode(this),
+  //     #jsFunctionPort: _port ?? IsolateFunction._handlePort,
+  //   };
+  // }
 
   int _refCount = 0;
 
