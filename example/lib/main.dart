@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -62,11 +64,50 @@ class _FlutterJsHomeScreenState extends State<FlutterJsHomeScreen> {
   @override
   void initState() {
     super.initState();
-
+    javascriptRuntime.evaluate(r'''globalThis.$nativeCallbacks = {};
+globalThis.$nativeCallbacksIncrement = 0;
+async function callNative(channelName, args) {
+    const callbackId = globalThis.$nativeCallbacksIncrement++;
+    const promise = new Promise((resolve) => {
+        globalThis.$nativeCallbacks[callbackId] = function() {
+            delete globalThis.$nativeCallbacks[callbackId];
+            console.log(`console:${JSON.stringify(arguments)}`);
+            resolve(...arguments);
+        };
+    });
+    sendMessage(channelName, JSON.stringify({"message": JSON.stringify(args), "callback": callbackId}));
+    return promise;
+}''');
+    bindJs('getData', (args) => 'Nothing.');
     // widget.javascriptRuntime.onMessage('ConsoleLog2', (args) {
     //   print('ConsoleLog2 (Dart Side): $args');
     //   return json.encode(args);
     // });
+  }
+
+  void ensurePendingJobs(JavascriptRuntime jsRuntime, int interval) {
+    Future.delayed(Duration(milliseconds: 100), () {
+      int result = jsRuntime.executePendingJob();
+      print('executePendingJob:$result');
+      if(result > 0) {
+        ensurePendingJobs(jsRuntime, interval + 100);
+      }
+    });
+  }
+  void bindJs(String channelName, FutureOr<dynamic> handler(dynamic args)) {
+    javascriptRuntime.onMessage(channelName, (args) {
+      String message = args['message'];
+      int jsCallbackId = args['callback'];
+      var result = handler(jsonDecode(message));
+      print('$channelName result: $result');
+      var cb = (dynamic result) => javascriptRuntime.evaluate('globalThis.\$nativeCallbacks[$jsCallbackId](${jsonEncode(result)})');
+      if(result is Future) {
+        result.then(cb);
+      } else {
+        cb(result);
+      }
+      ensurePendingJobs(javascriptRuntime, 100);
+    });
   }
 
   @override
@@ -123,12 +164,13 @@ class _FlutterJsHomeScreenState extends State<FlutterJsHomeScreen> {
               child: const Text('Fetch Remote Data'),
               onPressed: () async {
                 var asyncResult = await javascriptRuntime.evaluateAsync("""
-                fetch('https://raw.githubusercontent.com/abner/flutter_js/master/cxx/quickjs/VERSION').then(response => response.text());
+                callNative('getData', 'Anything?');
               """);
-                await javascriptRuntime.executePendingJob();
-                final promiseResolved =
-                    await javascriptRuntime.handlePromise(asyncResult);
-                setState(() => _quickjsVersion = promiseResolved.stringResult);
+                javascriptRuntime.executePendingJob();
+                // final promiseResolved =
+                //     await javascriptRuntime.handlePromise(asyncResult);
+                var result = asyncResult.rawResult is Future ? await asyncResult.rawResult : asyncResult.rawResult;
+                setState(() => _quickjsVersion = result.toString());
               },
             ),
             Text(
