@@ -1,0 +1,1 @@
+const String source = r'''FlutterJS.greeting=async function(t){return await FlutterJS.callNative("foo::greeting",t)};void(0)''';

@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "types": [],
+    "lib": ["esnext"]
+  },
+  "include": ["src/index.ts", "globals.d.ts"]
+}

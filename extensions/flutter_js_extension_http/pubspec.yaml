@@ -1,0 +1,24 @@
+name: flutter_js_extension_http
+description: An extension for the flutter_js plugin to provide native http api.
+homepage: https://github.com/dolphinxx/flutter_js/flutter_js_extension_http
+
+version: 0.4.0+5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_js_platform_interface:
+    path: ../../flutter_js_platform_interface
+  http: 0.13.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  pedantic: ^1.10.0
+  flutter_js:
+    path: ../../
+
+environment:
+  sdk: ">=2.12.0 <3.0.0"
+  flutter: ">=1.10.0"
+  
