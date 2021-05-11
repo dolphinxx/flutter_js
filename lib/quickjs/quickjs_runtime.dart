@@ -183,21 +183,21 @@ class QuickJsRuntime extends JavascriptRuntime {
     }
   }
 
-  JsEvalResult evaluate(String js) {
-    return jsEval(_context, js);
+  JsEvalResult evaluate(String js, {String? name}) {
+    return jsEval(_context, js, fileName: name);
   }
 
   static JsEvalResult jsEval(
     Pointer<JSContext> ctx,
     String js, {
-    String fileName = 'nofile.js',
+    String? fileName,
   }) {
     Pointer<JSValueConst>? result = calloc<JSValueConst>();
     Pointer<Pointer<Utf8NullTerminated>> stringResult =
         calloc<Pointer<Utf8NullTerminated>>();
     Pointer<Int32> errors = calloc<Int32>();
     _jsEvalWrapper(ctx, Utf8NullTerminated.toUtf8(js), js.length,
-        Utf8NullTerminated.toUtf8(fileName), 0, errors, result, stringResult);
+        Utf8NullTerminated.toUtf8(fileName??'<eval>'), 0, errors, result, stringResult);
 
     final strResult = Utf8NullTerminated.fromUtf8(stringResult.value);
     return JsEvalResult(

@@ -1,6 +1,5 @@
 /* START PARTS IMPORT QJS ENGINE */
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ffi';
 // import 'dart:io';
 // import 'dart:isolate';
@@ -37,6 +36,8 @@ class QuickJsRuntime2 extends JavascriptRuntime {
 
   /// Handler function to manage js module.
   final _JsHostPromiseRejectionHandler? hostPromiseRejectionHandler;
+
+  Timer? _pendingJobLoopTimer;
 
   QuickJsRuntime2({
     this.moduleHandler,
@@ -122,6 +123,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
 
   /// Free Runtime and Context which can be recreate when evaluate again.
   close() {
+    _pendingJobLoopTimer?.cancel();
     final rt = _rt;
     final ctx = _ctx;
     _rt = null;
@@ -131,8 +133,8 @@ class QuickJsRuntime2 extends JavascriptRuntime {
     // _executePendingJob();
     try {
       jsFreeRuntime(rt);
-    } on String catch (e) {
-      throw JSError(e);
+    } on String {
+      rethrow;
     }
   }
 
@@ -187,7 +189,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
     //   print(
     //       'RESULT: ${result.onError((error, stackTrace) => print('ERROR: $error _-----------------'))}');
     // }
-    //jsFreeValue(ctx, jsval);
+    jsFreeValue(ctx, jsval);
     return JsEvalResult(result?.toString() ?? "null", result);
   }
 
@@ -204,7 +206,8 @@ class QuickJsRuntime2 extends JavascriptRuntime {
 
   @override
   void dispose() {
-    // TODO: implement dispose
+    close();
+    super.dispose();
   }
 
   @override
@@ -214,14 +217,20 @@ class QuickJsRuntime2 extends JavascriptRuntime {
 
   @override
   int executePendingJob() {
-    // _executePendingJob();
-    // return 0;
     final rt = _rt;
     final ctx = _ctx;
     if (rt == null || ctx == null) return 0;
     int err = jsExecutePendingJob(rt);
     if (err < 0) print(_parseJSException(ctx));
     return err;
+  }
+
+  @override
+  void dispatch([int? interval]) {
+    if(_pendingJobLoopTimer != null) {
+      return;
+    }
+    _pendingJobLoopTimer = Timer.periodic(Duration(milliseconds: interval??100), (timer) => executePendingJob());
   }
 
   @override
@@ -232,31 +241,21 @@ class QuickJsRuntime2 extends JavascriptRuntime {
   @override
   void initChannelFunctions() {
     JavascriptRuntime.channelFunctionsRegistered[getEngineInstanceId()] = {};
-    final setToGlobalObject =
-        evaluate("(key, val) => { this[key] = val; }").rawResult;
-    (setToGlobalObject as JSInvokable).invoke([
-      'sendMessage',
-      (String channelName, dynamic message) {
-        final channelFunctions = JavascriptRuntime
-            .channelFunctionsRegistered[getEngineInstanceId()]!;
+    final channelObj = jsEval(_ctx!, 'FlutterJS', '<initChannel>', 0);
+    _definePropertyValue(_ctx!, channelObj, 'sendMessage', (String channelName, dynamic message) {
+      final channelFunctions = JavascriptRuntime
+          .channelFunctionsRegistered[getEngineInstanceId()]!;
 
-        if (channelFunctions.containsKey(channelName)) {
-          channelFunctions[channelName]!.call(message);
-        } else {
-          print('No channel $channelName registered');
-        }
-        if (JavascriptRuntime.debugEnabled) {
-          print('CHANNEL: $channelName - Message: $message');
-        }
+      if (channelFunctions.containsKey(channelName)) {
+        channelFunctions[channelName]!.call(message);
+      } else {
+        print('No channel $channelName registered');
       }
-    ]);
-    //  final sendMessageCreateFnResult = evaluate("""
-    //     function sendMessage(channelName, message) {
-    //       return FLUTTER_JS_NATIVE_BRIDGE_sendMessage.apply(globalThis, [channelName, message]);
-    //     }
-    //     sendMessage
-    //   """);
-    //print('RESULT creating sendMessage function: $sendMessageCreateFnResult');
+      if (JavascriptRuntime.debugEnabled) {
+        print('CHANNEL: $channelName - Message: $message');
+      }
+    });
+    jsFreeValue(_ctx!, channelObj);
   }
 
   @override

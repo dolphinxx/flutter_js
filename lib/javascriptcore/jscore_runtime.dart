@@ -12,7 +12,7 @@ import 'package:flutter_js/javascriptcore/binding/js_value_ref.dart';
 import 'package:flutter_js/javascriptcore/flutter_jscore.dart';
 import 'package:flutter_js/javascriptcore/jscore/js_value.dart';
 import 'package:flutter_js/javascriptcore/jscore_bindings.dart';
-import 'package:flutter_js/js_eval_result.dart';
+import 'package:flutter_js_platform_interface/js_eval_result.dart';
 
 class JavascriptCoreRuntime extends JavascriptRuntime {
   late Pointer _contextGroup;
@@ -60,18 +60,22 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
   }
 
   @override
-  JsEvalResult evaluate(String js) {
+  JsEvalResult evaluate(String js, {String? name}) {
     Pointer<Utf8> scriptCString = js.toNativeUtf8();
+    Pointer<Utf8>? nameCString = name?.toNativeUtf8();
 
     JSValuePointer exception = JSValuePointer();
     var jsValueRef = jSEvaluateScript(
         _globalContext,
         jSStringCreateWithUTF8CString(scriptCString),
-        nullptr,
+        name == null ? nullptr : jSStringCreateWithUTF8CString(nameCString!),
         nullptr,
         1,
         exception.pointer);
     calloc.free(scriptCString);
+    if(nameCString != null) {
+      calloc.free(nameCString);
+    }
 
     String result;
 
@@ -100,6 +104,7 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
   @override
   void dispose() {
     jSContextGroupRelease(_contextGroup);
+    super.dispose();
   }
 
   @override

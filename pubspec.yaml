@@ -13,6 +13,8 @@ dependencies:
     sdk: flutter
   ffi: "^1.0.0"
   http: ^0.13.1
+  flutter_js_platform_interface:
+    path: ./flutter_js_platform_interface
   sync_http: ^0.3.0
 
 dev_dependencies:

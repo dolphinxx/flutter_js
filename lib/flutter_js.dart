@@ -17,7 +17,7 @@ export 'quickjs-sync-server/quickjs_oasis_jsbridge.dart';
 import './extensions/fetch.dart';
 // import './extensions/handle_promises.dart';
 
-export 'js_eval_result.dart';
+export 'package:flutter_js_platform_interface/js_eval_result.dart';
 export 'javascript_runtime.dart';
 
 // import condicional to not import ffi libraries when using web as target
