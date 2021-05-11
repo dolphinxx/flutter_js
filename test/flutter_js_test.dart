@@ -37,6 +37,7 @@ void main() {
   });
 
   test('scrape list', () async {
+    jsRuntime.dispatch();
     JsEvalResult result = await jsRuntime.evaluateAsync(loadFile('extract_list_test.js'));
     var expected = jsonDecode(loadFile('extract_list_expected.json'));
     expect(await result.rawResult, expected);
