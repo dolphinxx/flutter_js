@@ -26,21 +26,15 @@ export 'javascript_runtime.dart';
 // - https://medium.com/flutter-community/conditional-imports-across-flutter-and-web-4b88885a886e
 // - https://github.com/creativecreatorormaybenot/wakelock/blob/master/wakelock/lib/wakelock.dart
 JavascriptRuntime getJavascriptRuntime(
-    {bool forceJavascriptCoreOnAndroid = false, bool xhr = true}) {
+    {bool forceJavascriptCoreOnAndroid = false,}) {
   JavascriptRuntime runtime;
   if ((Platform.isAndroid && !forceJavascriptCoreOnAndroid)) {
     runtime = QuickJsRuntime2();
-    // FlutterJs engine = FlutterJs();
-    // runtime = QuickJsService(engine);
   } else if (Platform.isWindows || Platform.isLinux) {
-    // runtime = FlutterJsLinuxWin()..init();
-    runtime = QuickJsRuntime2(); //('f1.js');
-    // runtime = QuickJsRuntime('f1.js');
+    runtime = QuickJsRuntime2();
   } else {
     runtime = JavascriptCoreRuntime();
   }
-  if (xhr) runtime.enableFetch();
-  // runtime.enableHandlePromises();
   return runtime;
 }
 
