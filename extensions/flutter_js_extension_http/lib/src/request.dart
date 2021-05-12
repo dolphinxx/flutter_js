@@ -42,14 +42,6 @@ Encoding requiredEncodingForCharset(String charset) =>
     Encoding.getByName(charset) ??
         (throw FormatException('Unsupported encoding "$charset".'));
 
-String? getCharsetFromContentType(String? contentType) {
-  if(contentType == null) {
-    return null;
-  }
-  MediaType mediaType = MediaType.parse(contentType);
-  return mediaType.parameters['charset'];
-}
-
 Map<String, String> createHeaders(dynamic raw) {
   Map<String, String> result = {};
   if(raw == null || !(raw is Map)) {
@@ -82,6 +74,18 @@ String mapToQuery(Map map, {Encoding? encoding}) {
   return pairs.map((pair) => '${pair[0]}=${pair[1]}').join('&');
 }
 
+String encodeBody(dynamic body, MediaType? contentType) {
+  if(!(body is String)) {
+    if(contentType?.mimeType == 'application/x-www-form-urlencoded') {
+      return mapToQuery(body);
+    }
+    if(contentType?.subtype == 'json') {
+      return jsonEncode(body);
+    }
+  }
+  return body.toString();
+}
+
 Future<NativeResponse> send(HttpClient client, Map httpOptions, Map clientOptions, {CacheProvider? cacheProvider, required Map<String, Encoding> encodingMap, AbortController? abortController, RequestInterceptor? requestInterceptor, ResponseInterceptor? responseInterceptor}) async {
   Uri uri = Uri.parse(httpOptions['url']);
   String method = (httpOptions['method'] as String?)?.toUpperCase()??'GET';
@@ -93,6 +97,7 @@ Future<NativeResponse> send(HttpClient client, Map httpOptions, Map clientOption
     }
   }
   String? contentType = requestHeaders['content-type']??requestHeaders['Content-Type'];
+  MediaType? mediaType = contentType == null ? null : MediaType.parse(contentType);
 
   bool forceEncoding = false;
   Encoding? encoding;
@@ -103,7 +108,7 @@ Future<NativeResponse> send(HttpClient client, Map httpOptions, Map clientOption
     forceEncoding = true;
   } else {
     // prefer charset in content-type than encoding in clientOptions.
-    String? _encoding = getCharsetFromContentType(contentType)?? clientOptions['encoding'];
+    String? _encoding = mediaType?.parameters['charset']?? clientOptions['encoding'];
     encoding = _encoding == null ? const Utf8Codec(allowMalformed: true) : encodingMap[_encoding]?? requiredEncodingForCharset(_encoding);
   }
 
@@ -142,14 +147,7 @@ Future<NativeResponse> send(HttpClient client, Map httpOptions, Map clientOption
 
   if(httpOptions.containsKey('body') && httpOptions['body'] != null) {
     // add body
-    dynamic _body = httpOptions['body'];
-    List<int>? body;
-    if(contentType == 'application/x-www-form-urlencoded' && _body is Map) {
-      body = encoding.encode(mapToQuery(_body));
-    }
-    if(body == null) {
-      body = encoding.encode(_body.toString());
-    }
+    List<int> body = encoding.encode(encodeBody(httpOptions['body'], mediaType));
     ioRequest.contentLength = body.length;
     ioRequest.add(body);
     await ioRequest.flush();
