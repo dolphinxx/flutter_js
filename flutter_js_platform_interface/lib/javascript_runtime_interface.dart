@@ -14,6 +14,8 @@ abstract class JavascriptRuntimeInterface {
   /// Start event loop in [interval] ms, multiple access safety.
   void dispatch(int interval);
 
+  void stopDispatch();
+
   onMessage(String channelName, void Function(dynamic args) fn);
 
   sendMessage({

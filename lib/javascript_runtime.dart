@@ -109,6 +109,10 @@ abstract class JavascriptRuntime implements JavascriptRuntimeInterface {
 
   }
 
+  void stopDispatch() {
+
+  }
+
   void _setupDispatch() {
     evaluate(r'''
     FlutterJS.dispatch = (interval) => FlutterJS.sendMessage("flutter_js::dispatch", interval||100);void(0)

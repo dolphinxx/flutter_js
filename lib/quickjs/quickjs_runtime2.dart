@@ -124,6 +124,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
   /// Free Runtime and Context which can be recreate when evaluate again.
   close() {
     _pendingJobLoopTimer?.cancel();
+    _pendingJobLoopTimer = null;
     final rt = _rt;
     final ctx = _ctx;
     _rt = null;
@@ -231,6 +232,15 @@ class QuickJsRuntime2 extends JavascriptRuntime {
       return;
     }
     _pendingJobLoopTimer = Timer.periodic(Duration(milliseconds: interval??100), (timer) => executePendingJob());
+  }
+
+  @override
+  void stopDispatch() {
+    if(_pendingJobLoopTimer != null) {
+      return;
+    }
+    _pendingJobLoopTimer!.cancel();
+    _pendingJobLoopTimer = null;
   }
 
   @override
