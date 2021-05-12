@@ -44,7 +44,7 @@ FlutterJS.send = async function (httpOptions, clientOptions, abortController?): 
   const promise = new Promise<FlutterJSExtensionResponse>((resolve) => {
     __flutter_js_extension_http_client__requests__[requestId] = function (response: FlutterJSExtensionResponse) {
       delete __flutter_js_extension_http_client__requests__[requestId];
-      console.log(`console:${JSON.stringify(response)}`);
+//    console.log(`console:${JSON.stringify(response)}`);
       resolve(response);
     };
   });
