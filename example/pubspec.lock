@@ -76,6 +76,13 @@ packages:
       relative: true
     source: path
     version: "0.4.0+6"
+  flutter_js_extension_http:
+    dependency: "direct dev"
+    description:
+      path: "../extensions/flutter_js_extension_http"
+      relative: true
+    source: path
+    version: "0.4.0+5"
   flutter_js_platform_interface:
     dependency: transitive
     description:

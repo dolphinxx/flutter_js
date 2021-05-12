@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_js/flutter_js.dart';
 import 'package:flutter_js_example/ajv_example.dart';
+import 'package:flutter_js_example/extension/http.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,7 +11,7 @@ void main() {
 }
 
 class MyApp extends StatefulWidget {
-  GlobalKey<ScaffoldState> scaffoldState = GlobalKey();
+  final GlobalKey<ScaffoldState> scaffoldState = GlobalKey();
   @override
   _MyAppState createState() => _MyAppState();
 }
@@ -38,25 +37,29 @@ class _FlutterJsHomeScreenState extends State<FlutterJsHomeScreen> {
 
   String? _quickjsVersion;
 
-  Process? _process;
-  bool _processInitialized = false;
   String evalJS() {
-    String jsResult = javascriptRuntime.evaluate("""
+    String jsResult = javascriptRuntime.evaluate(r"""
             if (typeof MyClass == 'undefined') {
-              var MyClass = class  {
+              var MyClass = class {
                 constructor(id) {
-                  this.id = id;
+                  this._id = id;
                 }
-                
-                getId() { 
-                  return this.id;
-                }
+
+                get id() => this._id;
+
+                set id(id) => this._id = id;
               }
             }
             var obj = new MyClass(1);
-            var jsonStringified = JSON.stringify(obj);
-            var value = Math.trunc(Math.random() * 100).toString();
-            JSON.stringify({ "object": jsonStringified, "expression": value});
+            JSON.stringify({
+              "object": JSON.stringify(obj),
+              "Math.random": Math.random(),
+              "now": new Date(),
+              "eval('1+1')": eval("1+1"),
+              "RegExp": `"Hello World!".match(new RegExp('world', 'i')) => ${"Hello World!".match(new RegExp('world', 'i'))}`, 
+              "decodeURIComponent": decodeURIComponent("https://github.com/abner/flutter_js/issues?q=is%3Aissue+is%3Aopen+comments%3A%3E50"),
+              "encodeURIComponent": ["Hello World", "世界你好", "مرحبا بالعالم", "こんにちは世界"].map(_ => `${_} => ${encodeURIComponent(_)}`).join(', '),
+            }, null, 2);
             """).stringResult;
     return jsResult;
   }
@@ -64,56 +67,11 @@ class _FlutterJsHomeScreenState extends State<FlutterJsHomeScreen> {
   @override
   void initState() {
     super.initState();
-    javascriptRuntime.evaluate(r'''globalThis.$nativeCallbacks = {};
-globalThis.$nativeCallbacksIncrement = 0;
-async function callNative(channelName, args) {
-    const callbackId = globalThis.$nativeCallbacksIncrement++;
-    const promise = new Promise((resolve) => {
-        globalThis.$nativeCallbacks[callbackId] = function() {
-            delete globalThis.$nativeCallbacks[callbackId];
-            console.log(`console:${JSON.stringify(arguments)}`);
-            resolve(...arguments);
-        };
-    });
-    sendMessage(channelName, JSON.stringify({"message": JSON.stringify(args), "callback": callbackId}));
-    return promise;
-}''');
-    bindJs('getData', (args) => 'Nothing.');
-    // widget.javascriptRuntime.onMessage('ConsoleLog2', (args) {
-    //   print('ConsoleLog2 (Dart Side): $args');
-    //   return json.encode(args);
-    // });
-  }
-
-  void ensurePendingJobs(JavascriptRuntime jsRuntime, int interval) {
-    Future.delayed(Duration(milliseconds: 100), () {
-      int result = jsRuntime.executePendingJob();
-      print('executePendingJob:$result');
-      if(result > 0) {
-        ensurePendingJobs(jsRuntime, interval + 100);
-      }
-    });
-  }
-  void bindJs(String channelName, FutureOr<dynamic> handler(dynamic args)) {
-    javascriptRuntime.onMessage(channelName, (args) {
-      String message = args['message'];
-      int jsCallbackId = args['callback'];
-      var result = handler(jsonDecode(message));
-      print('$channelName result: $result');
-      var cb = (dynamic result) => javascriptRuntime.evaluate('globalThis.\$nativeCallbacks[$jsCallbackId](${jsonEncode(result)})');
-      if(result is Future) {
-        result.then(cb);
-      } else {
-        cb(result);
-      }
-      ensurePendingJobs(javascriptRuntime, 100);
-    });
   }
 
   @override
   dispose() {
     super.dispose();
-    //widget.javascriptRuntime.dispose();
     javascriptRuntime.dispose();
   }
 
@@ -123,55 +81,39 @@ async function callNative(channelName, args) {
       appBar: AppBar(
         title: const Text('FlutterJS Example'),
       ),
-      body: Center(
+      body: Padding(
+        padding: EdgeInsets.all(6.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'JS Evaluate Result:\n\n$_jsResult\n',
-              textAlign: TextAlign.center,
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  'JS Evaluate Result:\n\n$_jsResult\n',
+                  textAlign: TextAlign.left,
+                ),
+              ),
             ),
-            SizedBox(
-              height: 20,
-            ),
+            const Padding(padding: EdgeInsets.only(top: 20),),
             Padding(
               padding: EdgeInsets.all(10),
               child: Text(
-                  'Click on the big JS Yellow Button to evaluate the expression bellow using the flutter_js plugin'),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                "Math.trunc(Math.random() * 100).toString();",
-                style: TextStyle(
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.bold),
-              ),
+                  'Click on the big JS Yellow Button to evaluate the expression using the flutter_js plugin'),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (ctx) => AjvExample(
-                      //widget.javascriptRuntime,
+                    //widget.javascriptRuntime,
                       javascriptRuntime),
                 ),
               ),
               child: const Text('See Ajv Example'),
             ),
-            SizedBox.fromSize(size: Size(double.maxFinite, 20)),
+            const Padding(padding: EdgeInsets.only(top: 20),),
             ElevatedButton(
-              child: const Text('Fetch Remote Data'),
-              onPressed: () async {
-                var asyncResult = await javascriptRuntime.evaluateAsync("""
-                callNative('getData', 'Anything?');
-              """);
-                javascriptRuntime.executePendingJob();
-                // final promiseResolved =
-                //     await javascriptRuntime.handlePromise(asyncResult);
-                var result = asyncResult.rawResult is Future ? await asyncResult.rawResult : asyncResult.rawResult;
-                setState(() => _quickjsVersion = result.toString());
-              },
+              child: const Text('HTTP Extension'),
+              onPressed: () => Navigator.of(context).push(PageRouteBuilder(pageBuilder: (ctx, _, __) => HttpExtensionExample())),
             ),
             Text(
               'QuickJS Version\n${_quickjsVersion == null ? '<NULL>' : _quickjsVersion}',

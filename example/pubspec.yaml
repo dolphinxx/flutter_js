@@ -21,6 +21,8 @@ dev_dependencies:
 
   flutter_js:
     path: ../
+  flutter_js_extension_http:
+    path: ../extensions/flutter_js_extension_http
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
