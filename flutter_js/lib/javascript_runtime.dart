@@ -6,55 +6,55 @@ import 'package:flutter_js_platform_interface/javascript_runtime_interface.dart'
 
 import 'package:flutter_js_platform_interface/js_eval_result.dart';
 
-class FlutterJsPlatformEmpty extends JavascriptRuntime {
-  @override
-  JsEvalResult callFunction(Pointer<NativeType> fn, Pointer<NativeType> obj) {
-    throw UnimplementedError();
-  }
-
-  @override
-  T? convertValue<T>(JsEvalResult jsValue) {
-    throw UnimplementedError();
-  }
-
-  @override
-  void dispose() {}
-
-  @override
-  JsEvalResult evaluate(String code, {String? name}) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<JsEvalResult> evaluateAsync(String code) {
-    throw UnimplementedError();
-  }
-
-  @override
-  int executePendingJob() {
-    throw UnimplementedError();
-  }
-
-  @override
-  String getEngineInstanceId() {
-    throw UnimplementedError();
-  }
-
-  @override
-  void initChannelFunctions() {
-    throw UnimplementedError();
-  }
-
-  @override
-  String jsonStringify(JsEvalResult jsValue) {
-    throw UnimplementedError();
-  }
-
-  @override
-  bool setupBridge(String channelName, void Function(dynamic args) fn) {
-    throw UnimplementedError();
-  }
-}
+// class FlutterJsPlatformEmpty extends JavascriptRuntime {
+//   @override
+//   JsEvalResult callFunction(Pointer<NativeType> fn, Pointer<NativeType> obj) {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   T? convertValue<T>(JsEvalResult jsValue) {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   void dispose() {}
+//
+//   @override
+//   JsEvalResult evaluate(String code, {String? name}) {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   Future<JsEvalResult> evaluateAsync(String code) {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   int executePendingJob() {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   String getEngineInstanceId() {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   void initChannelFunctions() {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   String jsonStringify(JsEvalResult jsValue) {
+//     throw UnimplementedError();
+//   }
+//
+//   @override
+//   bool setupBridge(String channelName, void Function(dynamic args) fn) {
+//     throw UnimplementedError();
+//   }
+// }
 
 abstract class JavascriptRuntime implements JavascriptRuntimeInterface {
   static bool debugEnabled = false;
@@ -181,7 +181,7 @@ void(0);
   }
 
   void _setupSetTimeout() {
-    final setTImeoutResult = evaluate("""
+    evaluate("""
       var __NATIVE_FLUTTER_JS__setTimeoutCount = -1;
       var __NATIVE_FLUTTER_JS__setTimeoutCallbacks = {};
       function setTimeout(fnTimeout, timeout) {
