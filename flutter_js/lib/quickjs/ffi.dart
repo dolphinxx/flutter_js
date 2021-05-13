@@ -115,25 +115,27 @@ abstract class JSPropertyEnum extends Opaque {}
 DynamicLibrary? __qjsLib;
 
 DynamicLibrary get _qjsLib {
-  if(__qjsLib != null) {
+  if (__qjsLib != null) {
     return __qjsLib!;
   }
-  if(Platform.environment.containsKey('FLUTTER_TEST')) {
-    return (Platform.isWindows
-        ? DynamicLibrary.open(Platform.environment['QUICKJS_TEST_PATH']?? 'quickjs_c_bridge.dll')
-        : Platform.isMacOS
-        ? DynamicLibrary.process()
-        : DynamicLibrary.open(Platform.environment['LIBQUICKJSC_TEST_PATH'] ??
-        'libquickjs_c_bridge_plugin.so'));
-  }
-  return (Platform.isWindows
-      ? DynamicLibrary.open('quickjs_c_bridge.dll')
-      : (Platform.isLinux
-      ? DynamicLibrary.open(Platform.environment['LIBQUICKJSC_PATH'] ??
-      'libquickjs_c_bridge_plugin.so')
-      : (Platform.isAndroid
-      ? DynamicLibrary.open('libfastdev_quickjs_runtime.so')
-      : DynamicLibrary.process())));
+  __qjsLib = Platform.environment.containsKey('FLUTTER_TEST')
+      ? (Platform.isWindows
+          ? DynamicLibrary.open(Platform.environment['QUICKJS_TEST_PATH'] ??
+              'quickjs_c_bridge.dll')
+          : Platform.isMacOS
+              ? DynamicLibrary.process()
+              : DynamicLibrary.open(
+                  Platform.environment['LIBQUICKJSC_TEST_PATH'] ??
+                      'libquickjs_c_bridge_plugin.so'))
+      : (Platform.isWindows
+          ? DynamicLibrary.open('quickjs_c_bridge.dll')
+          : (Platform.isLinux
+              ? DynamicLibrary.open(Platform.environment['LIBQUICKJSC_PATH'] ??
+                  'libquickjs_c_bridge_plugin.so')
+              : (Platform.isAndroid
+                  ? DynamicLibrary.open('libfastdev_quickjs_runtime.so')
+                  : DynamicLibrary.process())));
+  return __qjsLib!;
 }
 
 /// DLLEXPORT JSValue *jsThrow(JSContext *ctx, JSValue *obj)
