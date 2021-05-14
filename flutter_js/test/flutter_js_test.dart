@@ -27,13 +27,21 @@ void main() {
   });
 
   test('evaluate javascript', () {
-    print(jsRuntime.evaluate('typeof FlutterJS.nativeCallbacks'));
     final result = jsRuntime.evaluate('Math.pow(5,3)');
     print('${result.rawResult}, ${result.stringResult}');
     print(
         '${result.rawResult.runtimeType}, ${result.stringResult.runtimeType}');
     expect(result.rawResult, equals(125));
     expect(result.stringResult, equals('125'));
+  });
+
+  test('setupBridge', () async {
+    jsRuntime.dispatch();
+    jsRuntime.setupBridge('foo1', (args) => '$args boom!');
+    jsRuntime.setupBridge('foo2', (args) => Future.value('$args boom!'));
+    expect(jsRuntime.evaluate('FlutterJS.sendMessage("foo", "222")').rawResult, null);
+    expect(jsRuntime.evaluate('FlutterJS.sendMessage("foo1", "222")').rawResult, '222 boom!');
+    expect(await jsRuntime.evaluate('FlutterJS.sendMessage("foo2", "222")').rawResult, '222 boom!');
   });
 
   test('scrape list', () async {

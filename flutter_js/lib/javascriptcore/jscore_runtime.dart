@@ -35,6 +35,18 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
 
     context = JSContext(_globalContext);
 
+    Pointer<Utf8> channelName = 'FlutterJS'.toNativeUtf8();
+    final channelObj = jsObject.jSObjectMake(_globalContext, nullptr, nullptr);
+    jsObject.jSObjectSetProperty(
+      _globalContext,
+      _globalObject,
+      jSStringCreateWithUTF8CString(channelName),
+      channelObj,
+      0,
+      nullptr,
+    );
+    calloc.free(channelName);
+
     _sendMessageDartFunc = _sendMessage;
 
     Pointer<Utf8> funcNameCString = 'sendMessage'.toNativeUtf8();
@@ -44,7 +56,7 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
         Pointer.fromFunction(sendMessageBridgeFunction));
     jSObjectSetProperty(
         _globalContext,
-        _globalObject,
+        channelObj,
         jSStringCreateWithUTF8CString(funcNameCString),
         functionObject,
         jsObject.JSPropertyAttributes.kJSPropertyAttributeNone,
@@ -111,7 +123,7 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
   String getEngineInstanceId() => hashCode.abs().toString();
 
   @override
-  bool setupBridge(String channelName, Function(dynamic args) fn) {
+  bool setupBridge(String channelName, dynamic Function(dynamic args) fn) {
     final channelFunctionCallbacks =
         JavascriptRuntime.channelFunctionsRegistered[getEngineInstanceId()]!;
 
@@ -130,7 +142,7 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
       Pointer<Pointer> arguments,
       Pointer<Pointer> exception) {
     if (_sendMessageDartFunc != null) {
-      _sendMessageDartFunc!(
+      return _sendMessageDartFunc!(
           ctx, function, thisObject, argumentCount, arguments, exception);
     }
     return nullptr;
@@ -182,10 +194,26 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
         JavascriptRuntime.channelFunctionsRegistered[getEngineInstanceId()]!;
 
     String channelName = _getJsValue(arguments[0]);
+    // FIXME: object instead of string
     String message = _getJsValue(arguments[1]);
 
     if (channelFunctions.containsKey(channelName)) {
-      channelFunctions[channelName]!.call(jsonDecode(message));
+      dynamic result = channelFunctions[channelName]!.call(jsonDecode(message));
+      if(result is Future) {
+        final resolve = jSValueMakeUndefined(_globalContext);
+        final reject = jSValueMakeUndefined(_globalContext);
+        result.then((value) {
+          jsObject.jSObjectCallAsFunction(_globalContext, resolve, resolve, 1, jSValueMakeFromJSONString(_globalContext, JSString.fromString(jsonEncode(result)).pointer), nullptr);
+        }).catchError((err) {
+          jsObject.jSObjectCallAsFunction(_globalContext, reject, reject, 1, JSString.fromString(err.toString()).pointer, nullptr);
+        }).whenComplete(() {
+          calloc.free(resolve);
+          calloc.free(reject);
+        });
+        return jsObject.jSObjectMakeDeferredPromise(_globalContext, resolve, reject, nullptr);
+      } else {
+        return jSValueMakeFromJSONString(_globalContext, JSString.fromString(jsonEncode(result)).pointer);
+      }
     } else {
       print('No channel $channelName registered');
     }

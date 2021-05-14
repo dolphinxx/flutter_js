@@ -195,7 +195,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
   }
 
   @override
-  JsEvalResult callFunction(Pointer<NativeType> fn, Pointer<NativeType> obj) {
+  JsEvalResult callFunction(Pointer<NativeType> function, Pointer<NativeType> argument) {
     // TODO: implement callFunction
     throw UnimplementedError();
   }
@@ -255,14 +255,14 @@ class QuickJsRuntime2 extends JavascriptRuntime {
     _definePropertyValue(_ctx!, channelObj, 'sendMessage', (String channelName, dynamic message) {
       final channelFunctions = JavascriptRuntime
           .channelFunctionsRegistered[getEngineInstanceId()]!;
-
-      if (channelFunctions.containsKey(channelName)) {
-        channelFunctions[channelName]!.call(message);
-      } else {
-        print('No channel $channelName registered');
-      }
       if (JavascriptRuntime.debugEnabled) {
         print('CHANNEL: $channelName - Message: $message');
+      }
+      if (channelFunctions.containsKey(channelName)) {
+        return channelFunctions[channelName]!.call(message);
+      } else {
+        print('No channel $channelName registered');
+        return null;
       }
     });
     jsFreeValue(_ctx!, channelObj);
@@ -275,7 +275,7 @@ class QuickJsRuntime2 extends JavascriptRuntime {
   }
 
   @override
-  bool setupBridge(String channelName, void Function(dynamic args) fn) {
+  bool setupBridge(String channelName, dynamic Function(dynamic args) fn) {
     final channelFunctionCallbacks =
         JavascriptRuntime.channelFunctionsRegistered[getEngineInstanceId()]!;
 

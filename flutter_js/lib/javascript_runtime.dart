@@ -238,7 +238,7 @@ void(0);
     setupBridge(channelName, fn);
   }
 
-  bool setupBridge(String channelName, void Function(dynamic args) fn);
+  bool setupBridge(String channelName, dynamic Function(dynamic args) fn);
 
   String getEngineInstanceId();
 }
