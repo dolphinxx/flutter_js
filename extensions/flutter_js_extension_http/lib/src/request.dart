@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'abort_controller.dart';
-import 'package:http/http.dart';
-import 'package:http_parser/http_parser.dart';
 
 import 'cache.dart';
 import 'response.dart';
+import 'media_type.dart';
 
 typedef RequestInterceptor = HttpClientRequest Function(HttpClientRequest request, Map httpOptions, Map clientOptions);
 typedef ResponseInterceptor = HttpClientResponse Function(HttpClientResponse response, Map httpOptions, Map clientOptions);
@@ -165,19 +164,14 @@ Future<NativeResponse> send(HttpClient client, Map httpOptions, Map clientOption
   response.headers.forEach((key, values) {
     responseHeaders[key.toLowerCase()] = values.join(',');
   });
-  Stream<List<int>> _stream = response.handleError((error) {
-    final httpException = error as HttpException;
-    throw ClientException(httpException.message, httpException.uri);
-  }, test: (error) => error is HttpException);
-  
+
   if(!forceEncoding && responseHeaders.containsKey('content-type')) {
     String? responseEncoding = MediaType.parse(responseHeaders['content-type']!).parameters['charset'];
     if(responseEncoding != null) {
       encoding = encodingMap[responseEncoding]?? Encoding.getByName(responseEncoding)??encoding;
     }
   }
-  ByteStream stream = _stream is ByteStream ? _stream : ByteStream(_stream);
-  dynamic body = await stream.bytesToString(encoding);
+  dynamic body = await encoding.decodeStream(response);
 
   List<EncodableRedirectInfo> redirects = [];
   if(response.redirects.isNotEmpty) {

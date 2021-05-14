@@ -9,7 +9,6 @@ dependencies:
     sdk: flutter
   flutter_js_platform_interface:
     path: ../../flutter_js_platform_interface
-  http: 0.13.3
 
 dev_dependencies:
   flutter_test:
