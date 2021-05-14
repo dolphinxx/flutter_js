@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-
+# include("${CMAKE_CURRENT_SOURCE_DIR}/../../quickjs_c_bridge/quickjs.cmake")
 
 set(PROJECT_NAME "flutter_js_linux")
 project(${PROJECT_NAME} LANGUAGES CXX C)
@@ -26,8 +26,8 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
 target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
 
 # List of absolute paths to libraries that should be bundled with the plugin
-set(flutter_qjs_bundled_libraries
-  "$<TARGET_FILE:libquickjs_c_bridge_plugin.so>"
+set(flutter_js_bundled_libraries
+  ""
   PARENT_SCOPE
 )
 
