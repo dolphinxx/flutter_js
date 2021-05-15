@@ -73,7 +73,7 @@ class _HttpExtensionExampleState extends State<HttpExtensionExample> {
         jsRuntime.evaluate(sourceController.text, name: '<example>');
     response = result.rawResult is Future
         ? await result.rawResult
-        : result.stringResult;
+        : result.rawResult;
     coast = (DateTime.now().microsecondsSinceEpoch - begin) ~/ 1000;
     jsRuntime.stopDispatch();
     error = result.isError;
