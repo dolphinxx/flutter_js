@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:typed_data';
@@ -9,19 +10,19 @@ import 'package:flutter_js/javascriptcore/binding/js_object_ref.dart'
     as jsObject;
 import 'package:flutter_js/javascriptcore/binding/js_string_ref.dart';
 import 'package:flutter_js/javascriptcore/binding/js_value_ref.dart';
-import 'package:flutter_js/javascriptcore/flutter_jscore.dart';
-import 'package:flutter_js/javascriptcore/jscore/js_value.dart';
+import 'package:flutter_js/javascriptcore/flutter_jscore.dart' hide JSType;
 import 'package:flutter_js/javascriptcore/jscore_bindings.dart';
 import 'package:flutter_js_platform_interface/js_eval_result.dart';
+
+part 'wrapper.dart';
 
 class JavascriptCoreRuntime extends JavascriptRuntime {
   late Pointer _contextGroup;
   late Pointer _globalContext;
   late JSContext context;
-  late Pointer _globalObject;
 
   int executePendingJob() {
-    evaluate('(function(){})();');
+    // The ContextGroup handles event loop automatically.
     return 0;
   }
 
@@ -31,91 +32,55 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
   JavascriptCoreRuntime() {
     _contextGroup = jSContextGroupCreate();
     _globalContext = jSGlobalContextCreateInGroup(_contextGroup, nullptr);
-    _globalObject = jSContextGetGlobalObject(_globalContext);
 
     context = JSContext(_globalContext);
+    init();
+  }
 
-    Pointer<Utf8> channelName = 'FlutterJS'.toNativeUtf8();
-    final channelObj = jsObject.jSObjectMake(_globalContext, nullptr, nullptr);
-    jsObject.jSObjectSetProperty(
-      _globalContext,
-      _globalObject,
-      jSStringCreateWithUTF8CString(channelName),
-      channelObj,
-      0,
-      nullptr,
-    );
-    calloc.free(channelName);
+  @override
+  void initChannelFunctions() {
+    String instanceId = getEngineInstanceId();
+    setupChannelFunctions(instanceId, _globalContext);
+  }
 
-    _sendMessageDartFunc = _sendMessage;
+  static void setupChannelFunctions(dynamic instanceId, Pointer context) {
+    JavascriptRuntime.channelFunctionsRegistered[instanceId] = {};
 
+    // Inject engineInstanceId, and obtain FlutterJS reference.
+    final channelObj = jsEval(context, 'FlutterJS.instanceId="$instanceId";FlutterJS', name: 'instanceId setup');
+
+    // Define FlutterJS.sendMessage.
     Pointer<Utf8> funcNameCString = 'sendMessage'.toNativeUtf8();
     var functionObject = jSObjectMakeFunctionWithCallback(
-        _globalContext,
+        context,
         jSStringCreateWithUTF8CString(funcNameCString),
         Pointer.fromFunction(sendMessageBridgeFunction));
     jSObjectSetProperty(
-        _globalContext,
+        context,
         channelObj,
         jSStringCreateWithUTF8CString(funcNameCString),
         functionObject,
         jsObject.JSPropertyAttributes.kJSPropertyAttributeNone,
         nullptr);
     calloc.free(funcNameCString);
-
-    init();
-  }
-
-  @override
-  void initChannelFunctions() {
-    JavascriptRuntime.channelFunctionsRegistered[getEngineInstanceId()] = {};
   }
 
   @override
   JsEvalResult evaluate(String js, {String? name}) {
-    Pointer<Utf8> scriptCString = js.toNativeUtf8();
-    Pointer<Utf8>? nameCString = name?.toNativeUtf8();
-
-    JSValuePointer exception = JSValuePointer();
-    var jsValueRef = jSEvaluateScript(
-        _globalContext,
-        jSStringCreateWithUTF8CString(scriptCString),
-        name == null ? nullptr : jSStringCreateWithUTF8CString(nameCString!),
-        nullptr,
-        1,
-        exception.pointer);
-    calloc.free(scriptCString);
-    if(nameCString != null) {
-      calloc.free(nameCString);
+    final jsValueRef;
+    try {
+      jsValueRef = jsEval(_globalContext, js, name: name);
+      final result = jsToDart(_globalContext, jsValueRef);
+      return JsEvalResult(null, result, isError: false, isPromise: result is Future);
+    }catch(error) {
+      return JsEvalResult(null, error, isError: true);
     }
-
-    String result;
-
-    JSValue exceptionValue = exception.getValue(context);
-    bool isPromise = false;
-    if (exceptionValue.isObject) {
-      result =
-          'ERROR: ${exceptionValue.toObject().getProperty("message").string}';
-    } else {
-      result = _getJsValue(jsValueRef);
-      JSValue resultValue = JSValuePointer(jsValueRef).getValue(context);
-
-      isPromise = resultValue.isObject &&
-          resultValue.toObject().getProperty('then').isObject &&
-          resultValue.toObject().getProperty('catch').isObject;
-    }
-
-    return JsEvalResult(
-      result,
-      exceptionValue.isObject ? exceptionValue.toObject().pointer : jsValueRef,
-      isError: result.startsWith('ERROR:'),
-      isPromise: isPromise,
-    );
   }
 
   @override
   void dispose() {
     jSContextGroupRelease(_contextGroup);
+    _jsToNativeCallbacks.remove(getEngineInstanceId());
     super.dispose();
   }
 
@@ -134,6 +99,7 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
     return true;
   }
 
+  /// Static function for handling FlutterJS.sendMessage call.
   static Pointer sendMessageBridgeFunction(
       Pointer ctx,
       Pointer function,
@@ -141,10 +107,34 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
       int argumentCount,
       Pointer<Pointer> arguments,
       Pointer<Pointer> exception) {
-    if (_sendMessageDartFunc != null) {
-      return _sendMessageDartFunc!(
-          ctx, function, thisObject, argumentCount, arguments, exception);
+
+    String channelName = jsToDart(ctx, arguments[0]);
+
+    dynamic message = jsToDart(ctx, arguments[1]);
+    // Channel names for internal usage(ie: promise and dart2js function callback).
+    if(channelName == 'internal::native_callback') {
+      final callback = _getNativeCallback(message['instanceId']??getInstanceIdFromContext(ctx), (message['id'] as double).toInt());
+      if(callback == null) {
+        return nullptr;
+      }
+      // The thisObject here is always `FlutterJS` when calling `FlutterJS.sendMessage(...)`
+      //
+      // final globalThis = jSContextGetGlobalObject(ctx);
+      // dynamic thisObj = globalThis.address == thisObject.address ? null : jsToDart(ctx, thisObject);
+      // return Function.apply(callback, message['args']??[], {if(thisObj != null) #thisObject: thisObject});
+      return Function.apply(callback, message['args']??[]);
     }
+
+    String instanceId = getInstanceIdFromContext(ctx);
+    final channelFunctions =
+    JavascriptRuntime.channelFunctionsRegistered[instanceId]!;
+
+    if (channelFunctions.containsKey(channelName)) {
+      dynamic result = channelFunctions[channelName]!.call(jsonDecode(message));
+      return dartToJs(ctx, result);
+    }
+
+    print('No channel $channelName registered');
     return nullptr;
   }
 
@@ -169,60 +159,9 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
     return result;
   }
 
-  static jsObject.JSObjectCallAsFunctionCallbackDart? _sendMessageDartFunc;
-
-  Pointer _sendMessage(
-      Pointer ctx,
-      Pointer function,
-      Pointer thisObject,
-      int argumentCount,
-      Pointer<Pointer> arguments,
-      Pointer<Pointer> exception) {
-    String msg = 'No Message';
-    if (argumentCount != 0) {
-      msg = '';
-      for (int i = 0; i < argumentCount; i++) {
-        if (i != 0) {
-          msg += '\n';
-        }
-        var jsValueRef = arguments[i];
-        msg += _getJsValue(jsValueRef);
-      }
-    }
-
-    final channelFunctions =
-        JavascriptRuntime.channelFunctionsRegistered[getEngineInstanceId()]!;
-
-    String channelName = _getJsValue(arguments[0]);
-    // FIXME: object instead of string
-    String message = _getJsValue(arguments[1]);
-
-    if (channelFunctions.containsKey(channelName)) {
-      dynamic result = channelFunctions[channelName]!.call(jsonDecode(message));
-      if(result is Future) {
-        final resolve = jSValueMakeUndefined(_globalContext);
-        final reject = jSValueMakeUndefined(_globalContext);
-        result.then((value) {
-          jsObject.jSObjectCallAsFunction(_globalContext, resolve, resolve, 1, jSValueMakeFromJSONString(_globalContext, JSString.fromString(jsonEncode(result)).pointer), nullptr);
-        }).catchError((err) {
-          jsObject.jSObjectCallAsFunction(_globalContext, reject, reject, 1, JSString.fromString(err.toString()).pointer, nullptr);
-        }).whenComplete(() {
-          calloc.free(resolve);
-          calloc.free(reject);
-        });
-        return jsObject.jSObjectMakeDeferredPromise(_globalContext, resolve, reject, nullptr);
-      } else {
-        return jSValueMakeFromJSONString(_globalContext, JSString.fromString(jsonEncode(result)).pointer);
-      }
-    } else {
-      print('No channel $channelName registered');
-    }
-
-    return nullptr;
-  }
-
   @override
   JsEvalResult callFunction(Pointer<NativeType>? fn, Pointer<NativeType>? obj) {
+    // FIXME: Replace with jsCallFunction.
     JSValue fnValue = JSValuePointer(fn).getValue(context);
     JSObject functionObj = fnValue.toObject();
     JSValuePointer exception = JSValuePointer();
@@ -254,6 +193,7 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
 
   @override
   T? convertValue<T>(JsEvalResult jsValue) {
+    // FIXME: Replace with jsToDart.
     if (jSValueIsNull(_globalContext, jsValue.rawResult) == 1) {
       return null;
     } else if (jSValueIsString(_globalContext, jsValue.rawResult) == 1) {
@@ -290,8 +230,10 @@ class JavascriptCoreRuntime extends JavascriptRuntime {
 
   @override
   String jsonStringify(JsEvalResult jsValue) {
-    JSValue objValue = JSValuePointer(jsValue.rawResult).getValue(context);
-    return objValue.createJSONString(null).string!;
+    // FIXME: remove this function
+    // JSValue objValue = JSValuePointer(jsValue.rawResult).getValue(context);
+    // return objValue.createJSONString(null).string!;
+    throw UnsupportedError('Prefer to JSON stringify in js side.');
   }
 
   @override

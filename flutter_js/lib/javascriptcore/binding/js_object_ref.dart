@@ -1,7 +1,6 @@
 import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter/cupertino.dart';
 
 import 'jsc_ffi.dart';
 
@@ -178,7 +177,7 @@ typedef JSObjectGetPropertyNamesCallbackDart = void Function(
 ///
 /// If this callback is NULL, calling your object as a function will throw an exception.
 /// typedef JSValueRef (*JSObjectCallAsFunctionCallback) (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception);
-typedef JSObjectCallAsFunctionCallback = Pointer Function(
+typedef JSObjectCallAsFunctionCallback = Pointer<Pointer> Function(
     Pointer ctx,
     Pointer function,
     Pointer thisObject,

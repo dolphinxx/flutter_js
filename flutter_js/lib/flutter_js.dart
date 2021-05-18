@@ -15,7 +15,7 @@ export 'javascript_runtime.dart';
 // - https://github.com/creativecreatorormaybenot/wakelock/blob/master/wakelock/lib/wakelock.dart
 JavascriptRuntime getJavascriptRuntime() {
   JavascriptRuntime runtime;
-  if (Platform.isIOS) {
+  if (Platform.isIOS || Platform.isMacOS) {
     runtime = JavascriptCoreRuntime();
   } else {
     runtime = QuickJsRuntime2();

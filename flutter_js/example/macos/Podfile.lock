@@ -1,20 +1,20 @@
 PODS:
-  - flutter_js (0.0.1):
+  - flutter_js_macos (0.0.1):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
 
 DEPENDENCIES:
-  - flutter_js (from `Flutter/ephemeral/.symlinks/plugins/flutter_js/macos`)
+  - flutter_js_macos (from `Flutter/ephemeral/.symlinks/plugins/flutter_js_macos/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
 
 EXTERNAL SOURCES:
-  flutter_js:
-    :path: Flutter/ephemeral/.symlinks/plugins/flutter_js/macos
+  flutter_js_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_js_macos/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
 
 SPEC CHECKSUMS:
-  flutter_js: c664361655af1d8fc24e278c7d086e9cbe0d68bc
+  flutter_js_macos: aa1a20d73ac6a60b1f4101e6871a5c7c7ec6655e
   FlutterMacOS: 57701585bf7de1b3fc2bb61f6378d73bbdea8424
 
 PODFILE CHECKSUM: 6eac6b3292e5142cfc23bdeb71848a40ec51c14c

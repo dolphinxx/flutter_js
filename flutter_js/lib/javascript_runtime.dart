@@ -62,7 +62,7 @@ abstract class JavascriptRuntime implements JavascriptRuntimeInterface {
 
   @protected
   JavascriptRuntime init() {
-    evaluate('const FlutterJS = {};void(0)');
+    evaluate('const FlutterJS = {typeOf:function(obj){return typeof obj}};void(0)', name: 'FlutterJS setup');
     initChannelFunctions();
     _setupDispatch();
     _setupConsoleLog();
